@@ -1,0 +1,45 @@
+name: Compilar plugin de bolsas
+
+on:
+workflow_dispatch:
+push:
+branches: [main]
+
+permissions:
+contents: read
+
+jobs:
+build:
+runs-on: ubuntu-latest
+steps:
+- name: Descargar archivos
+uses: actions/checkout@v4
+
+```
+  - name: Instalar Java
+    uses: actions/setup-java@v4
+    with:
+      distribution: temurin
+      java-version: '25'
+
+  - name: Extraer y compilar el proyecto
+    id: build
+    run: |
+      ZIP="$(find . -maxdepth 1 -type f -name '*.zip' | head -n 1)"
+      if [ -z "$ZIP" ]; then echo "No se encontró el ZIP"; exit 1; fi
+      mkdir extracted
+      unzip -q "$ZIP" -d extracted
+      POM="$(find extracted -name pom.xml -print -quit)"
+      if [ -z "$POM" ]; then echo "No se encontró pom.xml"; exit 1; fi
+      DIR="$(dirname "$POM")"
+      echo "dir=$DIR" >> "$GITHUB_OUTPUT"
+      cd "$DIR"
+      mvn --batch-mode clean package
+
+  - name: Guardar el plugin JAR
+    uses: actions/upload-artifact@v4
+    with:
+      name: BolsasPlugin
+      path: extracted/**/target/*.jar
+      if-no-files-found: error
+```
