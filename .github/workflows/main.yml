@@ -1,0 +1,50 @@
+name: Compilar plugin de bolsas
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar archivos
+        uses: actions/checkout@v4
+
+      - name: Instalar Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - name: Comprobar proyecto
+        run: |
+          echo "Archivos disponibles:"
+          find . -maxdepth 3 -type f
+          ZIP="$(find . -maxdepth 1 -type f -name '*.zip' | head -n 1)"
+          if [ -z "$ZIP" ]; then
+            echo "No se encontró el ZIP del proyecto"
+            exit 1
+          fi
+          mkdir extracted
+          unzip -q "$ZIP" -d extracted
+          POM="$(find extracted -name pom.xml -print -quit)"
+          if [ -z "$POM" ]; then
+            echo "El ZIP no contiene pom.xml"
+            exit 1
+          fi
+          cd "$(dirname "$POM")"
+          mvn --batch-mode clean package
+          mkdir -p "$GITHUB_WORKSPACE/plugin"
+          find target -maxdepth 1 -type f -name '*.jar' -exec cp {} "$GITHUB_WORKSPACE/plugin/" \;
+
+      - name: Descargar plugin compilado
+        uses: actions/upload-artifact@v4
+        with:
+          name: BolsasPlugin-JAR
+          path: plugin/*.jar
+          if-no-files-found: error
